@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Interpolation parsing with first-compiles rule</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Interpolation Parsing</h1>
+
+<p>Tests the "first-compiles" rule for balanced brace parsing.</p>
+
+<tag-mark id="root">
+  <!-- Basic expressions -->
+  <span class="simple">{1 + 1}</span>
+  <span class="multiple">{1}{2}{3}</span>
+
+  <!-- Nested braces: object literals -->
+  <span class="object">{{a: 1, b: 2}}</span>
+  <span class="object-access">{{a: 1, b: 2}.a}</span>
+
+  <!-- Arrow functions with object returns -->
+  <span class="arrow">{[1,2].map(x => x * 2).join(',')}</span>
+
+  <!-- Quoted strings containing braces -->
+  <span class="quoted-brace">{'{}'}</span>
+  <span class="quoted-close-brace">{'}'}</span>
+  <span class="quoted-open-brace">{'{'}</span>
+  <span class="quoted-mixed">{'{' + '}'}</span>
+
+  <!-- Nullish coalescing with object fallback -->
+  <span class="nullish" def="$val := {null}">{$val ?? 'default'}</span>
+
+  <!-- Literal braces (not valid expressions) -->
+  <span class="literal-open">{not valid js</span>
+  <span class="literal-unmatched">some { text</span>
+
+  <!-- Type preservation -->
+  <span class="bool-true" data-val="{true}">bool</span>
+  <span class="bool-false" data-val="{false}">bool</span>
+  <span class="number" data-val="{42}">num</span>
+  <span class="string-single" data-val="{'hello'}">str</span>
+  <span class="mixed-becomes-string" data-val="x{1}y">mixed</span>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r, 10));
+
+Test.run("interpolation-parsing", async t => {
+  await nextTick();
+
+  // Basic expressions
+  t.eq(document.querySelector(".simple")?.textContent, "2", "simple expression");
+  t.eq(document.querySelector(".multiple")?.textContent, "123", "multiple expressions concatenate");
+
+  // Nested braces: object literals
+  t.eq(document.querySelector(".object")?.textContent, "[object Object]", "object literal parses");
+  t.eq(document.querySelector(".object-access")?.textContent, "1", "object literal with property access");
+
+  // Arrow functions
+  t.eq(document.querySelector(".arrow")?.textContent, "2,4", "arrow function in expression");
+
+  // Quoted strings containing braces
+  t.eq(document.querySelector(".quoted-brace")?.textContent, "{}", "quoted braces in string");
+  t.eq(document.querySelector(".quoted-close-brace")?.textContent, "}", "quoted close brace");
+  t.eq(document.querySelector(".quoted-open-brace")?.textContent, "{", "quoted open brace");
+  t.eq(document.querySelector(".quoted-mixed")?.textContent, "{}", "concatenated brace strings");
+
+  // Nullish coalescing
+  t.eq(document.querySelector(".nullish")?.textContent, "default", "nullish coalescing works");
+
+  // Literal braces
+  t.eq(document.querySelector(".literal-open")?.textContent, "{not valid js", "invalid expr becomes literal");
+  t.eq(document.querySelector(".literal-unmatched")?.textContent, "some { text", "unmatched brace is literal");
+
+  // Type preservation in attributes
+  const boolTrue = document.querySelector(".bool-true");
+  const boolFalse = document.querySelector(".bool-false");
+  const num = document.querySelector(".number");
+  const str = document.querySelector(".string-single");
+  const mixed = document.querySelector(".mixed-becomes-string");
+
+  t.eq(boolTrue?.dataset.val, "true", "boolean true preserved");
+  t.eq(boolFalse?.dataset.val, "false", "boolean false preserved");
+  t.eq(num?.dataset.val, "42", "number preserved");
+  t.eq(str?.dataset.val, "hello", "string preserved");
+  t.eq(mixed?.dataset.val, "x1y", "mixed interpolation becomes string");
+
+  t.done();
+});
+</script>
+
+</body>
+</html>

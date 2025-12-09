@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Effect expressions mutate state</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Effect Expressions</h1>
+
+<tag-mark-global init="{ {count: 0, flag: false} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <section>
+    <p class="count">Count: {@Global.count}</p>
+    <p class="flag">Flag: {@Global.flag}</p>
+    <button class="inc" onclick="@{ @Global.count = (@Global.count || 0) + 1 }">Increment</button>
+    <button class="toggle" onclick="@{ @Global.flag = !(@Global.flag || false) }">Toggle</button>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r));
+
+Test.run("effect-expression-updates", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(async () => {
+    const count = document.querySelector(".count");
+    const flag = document.querySelector(".flag");
+    const inc = document.querySelector(".inc");
+    const toggle = document.querySelector(".toggle");
+
+    t.eq(count.textContent.trim(), "Count: 0", "initial count rendered");
+    t.eq(flag.textContent.trim(), "Flag: false", "initial flag rendered");
+
+    inc.click();
+    await nextTick();
+    t.eq(count.textContent.trim(), "Count: 1", "click increments count");
+
+    toggle.click();
+    await nextTick();
+    t.eq(flag.textContent.trim(), "Flag: true", "toggle flips flag");
+
+    inc.click();
+    inc.click();
+    await nextTick();
+    t.eq(count.textContent.trim(), "Count: 3", "multiple clicks accumulate");
+
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

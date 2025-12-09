@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Pure expressions stay read-only</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Pure Expression Safety</h1>
+
+<tag-mark-global init="{ {data: { value: 5 }} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <section>
+    <p class="snapshot">{@Global.data.value}</p>
+    <p class="illegal">{@Global.data.value = 99}</p>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const errors = [];
+window.addEventListener("error", e => errors.push(e.message));
+
+Test.run("pure-expression-safety", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(() => {
+    const snapshot = document.querySelector(".snapshot");
+    const illegal = document.querySelector(".illegal");
+
+    t.eq(snapshot?.textContent.trim(), "5", "pure expression reads value");
+    t.ok(errors.length > 0 || illegal?.textContent.toLowerCase().includes("error"), "mutation inside {} surfaces as error");
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

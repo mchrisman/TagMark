@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Form special field types</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Form Special Fields</h1>
+
+<tag-mark id="root">
+  <form class="special">
+    <input type="file" name="upload">
+    <select name="colors" multiple>
+      <option value="red">Red</option>
+      <option value="green">Green</option>
+      <option value="blue">Blue</option>
+    </select>
+    <label><input type="radio" name="size" value="s">Small</label>
+    <label><input type="radio" name="size" value="m">Medium</label>
+    <label><input type="checkbox" name="subscribe" checked>Subscribe</label>
+    <div class="file-name">{@Form.upload?.[0]?.name}</div>
+    <div class="colors">{@Form.colors}</div>
+    <div class="size">{@Form.size}</div>
+    <div class="subscribe">{@Form.subscribe}</div>
+  </form>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r));
+
+Test.run("form-special-fields", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(async () => {
+    const fileInput = document.querySelector("input[name=upload]");
+    const colorSelect = document.querySelector("select[name=colors]");
+    const radioM = document.querySelector("input[value=m]");
+    const checkbox = document.querySelector("input[name=subscribe]");
+
+    const dt = new DataTransfer();
+    dt.items.add(new File(["hello"], "hello.txt", { type: "text/plain" }));
+    fileInput.files = dt.files;
+    fileInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+    colorSelect.options[1].selected = true; // green
+    colorSelect.options[2].selected = true; // blue
+    colorSelect.dispatchEvent(new Event("change", { bubbles: true }));
+
+    radioM.checked = true;
+    radioM.dispatchEvent(new Event("change", { bubbles: true }));
+
+    checkbox.checked = false;
+    checkbox.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await nextTick();
+
+    t.eq(document.querySelector(".file-name")?.textContent.trim(), "hello.txt", "File input binds FileList to @Form");
+    t.eq(document.querySelector(".colors")?.textContent.trim(), "green,blue", "multiple select produces array");
+    t.eq(document.querySelector(".size")?.textContent.trim(), "m", "radio group stores single value");
+    t.eq(document.querySelector(".subscribe")?.textContent.trim(), "false", "checkbox binds boolean");
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p:*)",
+      "Bash(grep:*)",
+      "Bash(node test.mjs:*)",
+      "Bash(ls:*)",
+      "Bash(time node:*)",
+      "Bash(node -e:*)",
+      "Bash(node test/case-insensitive-function.test.mjs:*)",
+      "Bash(git add:*)",
+      "Bash(node demo/test-todo.mjs:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

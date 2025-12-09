@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: URL include filtering</title>
+  <script>
+    location.hash = "#a=alpha&b=beta&c=gamma";
+  </script>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>URL Include Filtering</h1>
+
+<tag-mark id="root">
+  <URL include="a,b"></URL>
+  <div class="a">{@Url.a}</div>
+  <div class="b">{@Url.b}</div>
+  <div class="c">{@Url.c}</div>
+  <button class="set" onclick="@{ (@Url.a = 'one', @Url.b = 'two', @Url.c = 'local-only') }">Update Url</button>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r));
+
+Test.run("url-include-filtering", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(async () => {
+    t.eq(document.querySelector(".a")?.textContent.trim(), "alpha", "included key reads from hash");
+    t.eq(document.querySelector(".b")?.textContent.trim(), "beta", "second included key reads from hash");
+    // All @Url keys read from hash; include only controls what gets written back
+    t.eq(document.querySelector(".c")?.textContent.trim(), "gamma", "all keys readable from initial hash");
+
+    document.querySelector(".set")?.click();
+    await nextTick();
+
+    t.ok(location.hash.includes("a=one") && location.hash.includes("b=two"), "included keys write to hash");
+    t.ok(!location.hash.includes("c=local-only"), "excluded key omitted from hash updates");
+    t.ok(document.querySelector(".c")?.textContent.trim() === "local-only", "excluded key still available locally");
+
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

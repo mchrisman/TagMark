@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Basic tag-mark mount</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Basic Rendering</h1>
+
+<tag-mark id="root">
+  <section def="@Section as local" init="{ {testVal: 42, obj: {a: 1, b: 2}} }">
+    <!-- Basic text interpolation -->
+    <h2>Hello {"World"}</h2>
+
+    <!-- Variable interpolation -->
+    <p def="$count := {3}" class="var-simple">{$count}</p>
+    <p def="$count := {3}" class="var-in-text">Count: {$count}</p>
+    <p def="$count := {3}" class="var-in-expr">{$count + 1}</p>
+
+    <!-- Handle interpolation -->
+    <p class="handle-simple">{@Section.testVal}</p>
+    <p class="handle-in-text">Value: {@Section.testVal}</p>
+    <p class="handle-in-expr">{@Section.testVal + 1}</p>
+
+    <!-- Structure output -->
+    <p class="struct-output">{@Section.obj}</p>
+
+    <!-- Mixed HTML and expressions -->
+    <div class="mixed">
+      <span class="plain">Plain HTML</span>
+      <span class="expr">{1 + 1}</span>
+    </div>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r, 10));
+
+Test.run("basic-rendering", async t => {
+  await nextTick();
+
+  // Basic text interpolation
+  const heading = document.querySelector("h2");
+  t.eq(heading?.textContent?.trim(), "Hello World", "renders mixed HTML and interpolation");
+
+  // Variable interpolation
+  t.eq(document.querySelector(".var-simple")?.textContent?.trim(), "3", "$var renders value");
+  t.eq(document.querySelector(".var-in-text")?.textContent?.trim(), "Count: 3", "$var in text");
+  t.eq(document.querySelector(".var-in-expr")?.textContent?.trim(), "4", "$var in expression");
+
+  // Handle interpolation
+  t.eq(document.querySelector(".handle-simple")?.textContent?.trim(), "42", "@Handle renders value");
+  t.eq(document.querySelector(".handle-in-text")?.textContent?.trim(), "Value: 42", "@Handle in text");
+  t.eq(document.querySelector(".handle-in-expr")?.textContent?.trim(), "43", "@Handle in expression");
+
+  // Structure as JSON
+  const structText = document.querySelector(".struct-output")?.textContent?.trim();
+  t.ok(structText === "[object Object]" || structText === '{"a":1,"b":2}', "struct outputs (JSON or toString)");
+
+  // Mixed HTML
+  t.eq(document.querySelector(".plain")?.textContent?.trim(), "Plain HTML", "plain HTML preserved");
+  t.eq(document.querySelector(".expr")?.textContent?.trim(), "2", "pure expression renders");
+
+  t.done();
+});
+</script>
+
+</body>
+</html>

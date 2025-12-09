@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>TagMark Demo: To-Do List</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 500px;
+      margin: 40px auto;
+      padding: 0 20px;
+      background: #f5f5f5;
+    }
+    h1 { color: #333; margin-bottom: 20px; }
+    .add-form {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .add-form input[type="text"] {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 16px;
+    }
+    .add-form button {
+      padding: 10px 20px;
+      background: #4a90d9;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    .add-form button:hover { background: #357abd; }
+    .filters {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .filters button {
+      padding: 6px 12px;
+      border: 1px solid #ddd;
+      background: white;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .filters button.active {
+      background: #4a90d9;
+      color: white;
+      border-color: #4a90d9;
+    }
+    .todo-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    .todo-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: white;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .todo-item.done .todo-text {
+      text-decoration: line-through;
+      color: #999;
+    }
+    .todo-item input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    .todo-text {
+      flex: 1;
+      font-size: 16px;
+    }
+    .delete-btn {
+      padding: 4px 8px;
+      background: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      opacity: 0.7;
+    }
+    .delete-btn:hover { opacity: 1; }
+    .stats {
+      margin-top: 16px;
+      padding: 12px;
+      background: white;
+      border-radius: 4px;
+      color: #666;
+      font-size: 14px;
+    }
+    .clear-completed {
+      margin-top: 8px;
+      padding: 8px 16px;
+      background: #95a5a6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .clear-completed:hover { background: #7f8c8d; }
+    .empty-message {
+      text-align: center;
+      color: #999;
+      padding: 20px;
+    }
+  </style>
+</head>
+<body>
+
+<tag-mark-global init="{ {
+  todos: [
+    { id: 1, text: 'Learn TagMark', done: true },
+    { id: 2, text: 'Build something cool', done: false },
+    { id: 3, text: 'Share with friends', done: false }
+  ],
+  filter: 'all',
+  nextId: 4
+} }"></tag-mark-global>
+
+<tag-mark id="app">
+  <h1>To-Do List</h1>
+
+  <!-- Add new todo form -->
+  <form class="add-form" bind="@Global.newTodo">
+    <input type="text" name="text" placeholder="What needs to be done?">
+    <button type="button" onclick="@{
+      @Global.newTodo?.text?.trim() && (
+        @Global.todos = [...@Global.todos, { id: @Global.nextId, text: @Global.newTodo.text.trim(), done: false }],
+        @Global.nextId = @Global.nextId + 1,
+        @Global.newTodo = { text: '' }
+      )
+    }">Add</button>
+  </form>
+
+  <!-- Filter buttons -->
+  <Url bind="@Global.filter"/>
+  <div class="filters">
+    <button class="{@Global.filter === 'all' ? 'active' : ''}"
+            onclick="@{ @Global.filter = 'all' }">All</button>
+    <button class="{@Global.filter === 'active' ? 'active' : ''}"
+            onclick="@{ @Global.filter = 'active' }">Active</button>
+    <button class="{@Global.filter === 'completed' ? 'active' : ''}"
+            onclick="@{ @Global.filter = 'completed' }">Completed</button>
+  </div>
+
+  <!-- Todo list -->
+  <ul class="todo-list">
+    <Loop each="$todo as value of {@Global.todos.filter(t =>
+      @Global.filter === 'all' ? true :
+      @Global.filter === 'active' ? !t.done : t.done
+    )} marked by {$todo.id}">
+      <li class="{'todo-item' + ($todo.done ? ' done' : '')}">
+        <input type="checkbox"
+               checked="{$todo.done}"
+               onchange="@{
+                 @Global.todos = @Global.todos.map(t =>
+                   t.id === $todo.id ? {...t, done: !t.done} : t
+                 )
+               }">
+        <span class="todo-text">{$todo.text}</span>
+        <button class="delete-btn" onclick="@{
+          @Global.todos = @Global.todos.filter(t => t.id !== $todo.id)
+        }">Delete</button>
+      </li>
+    </Loop>
+  </ul>
+
+  <!-- Empty state -->
+  <When test="{@Global.todos.filter(t =>
+    @Global.filter === 'all' ? true :
+    @Global.filter === 'active' ? !t.done : t.done
+  ).length === 0}">
+    <p class="empty-message">
+      <When test="{@Global.filter === 'all'}">No todos yet. Add one above!</When>
+      <When test="{@Global.filter === 'active'}">No active todos. Great job!</When>
+      <When test="{@Global.filter === 'completed'}">No completed todos yet.</When>
+    </p>
+  </When>
+
+  <!-- Stats -->
+  <div class="stats">
+    <span>{@Global.todos.filter(t => !t.done).length} items left</span>
+    <span> · </span>
+    <span>{@Global.todos.filter(t => t.done).length} completed</span>
+  </div>
+
+  <!-- Clear completed button -->
+  <When test="{@Global.todos.some(t => t.done)}">
+    <button class="clear-completed" onclick="@{
+      @Global.todos = @Global.todos.filter(t => !t.done)
+    }">Clear Completed</button>
+  </When>
+</tag-mark>
+
+</body>
+</html>

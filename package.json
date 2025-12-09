@@ -1,0 +1,11 @@
+{
+  "name": "tagmark",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "./test"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}

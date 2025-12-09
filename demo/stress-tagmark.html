@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <title>TagMark Sensor Wall Benchmark</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #111;
+      color: #eee;
+    }
+    .page {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    h2 {
+      margin: 0;
+      font-size: 20px;
+    }
+    .controls {
+      font-size: 14px;
+      line-height: 1.4;
+      color: #ccc;
+    }
+    .controls span.label {
+      color: #888;
+    }
+    .grid {
+      display: grid;
+      gap: 1px;
+      background: #000;
+      border-radius: 4px;
+      overflow: hidden;
+      max-height: calc(100vh - 140px);
+    }
+    .cell {
+      position: relative;
+      background: #222;
+      color: #fff;
+      font-size: 10px;
+      line-height: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: space-between;
+      box-sizing: border-box;
+      padding: 2px;
+      min-height: 8px;
+      aspect-ratio: 1;
+    }
+    .cell .bar {
+      width: 100%;
+      transform-origin: bottom center;
+      background: rgba(0,0,0,0.5);
+      border-radius: 1px;
+      flex: 1 1 auto;
+    }
+    .cell .val {
+      font-variant-numeric: tabular-nums;
+      font-size: 9px;
+      text-align: right;
+      margin-top: 1px;
+    }
+    .cell .icon {
+      position: absolute;
+      top: 1px;
+      left: 2px;
+      font-size: 9px;
+    }
+    .legend {
+      font-size: 12px;
+      color: #777;
+    }
+  </style>
+</head>
+<body>
+  <!-- Benchmark helpers (JS side) - must be plain script, not module, for import= to find them -->
+  <script>
+    // Map sensor value [0,1] to a heat color
+    function colorForValue(v) {
+      const t = Math.max(0, Math.min(1, v));
+      // blue → green → yellow → red
+      const r = t < 0.5 ? t * 2 * 255 : 255;
+      const g = t < 0.5 ? t * 2 * 255 : (1 - (t - 0.5) * 2) * 255;
+      const b = t < 0.5 ? 255 : (1 - (t - 0.5) * 2) * 64;
+      return `rgb(${r|0},${g|0},${b|0})`;
+    }
+
+    // TagMark passes @TagMark handle into this function via @{}.
+    function startSensorBenchmark(appHandle) {
+      const state = appHandle; // effect context: can mutate directly
+      // Initialize sensors once
+      const rows = state.config.rows;
+      const cols = state.config.cols;
+      const total = rows * cols;
+
+      if (!Array.isArray(state.sensors) || state.sensors.length !== total) {
+        const arr = [];
+        const now = performance.now();
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            arr.push({
+              id: `r${r}c${c}`,
+              value: Math.random(),
+              trend: 0,
+              lastUpdated: now
+            });
+          }
+        }
+        state.sensors = arr;
+      }
+
+      let lastFrameStart = performance.now();
+      const { updateRateMs, updateFraction } = state.config;
+      const countPerTick = Math.max(1, Math.floor(updateFraction * total));
+
+      setInterval(() => {
+        const t0 = performance.now();
+
+        // Mutate a subset of cells
+        for (let i = 0; i < countPerTick; i++) {
+          const idx = (Math.random() * total) | 0;
+          const cell = state.sensors[idx];
+          const old = cell.value;
+          const next = Math.random();
+          cell.value = next;
+          cell.trend = next - old;
+          cell.lastUpdated = t0;
+        }
+
+        const t1 = performance.now();
+        const frameMs = t1 - lastFrameStart;
+        lastFrameStart = t1;
+
+        const stats = state.stats;
+        stats.tick++;
+        stats.lastFrameMs = frameMs;
+        stats.avgFrameMs =
+          stats.avgFrameMs === 0
+            ? frameMs
+            : stats.avgFrameMs * 0.9 + frameMs * 0.1;
+        // Any mutation above will trigger TagMark/ActDown to re-render the whole tree.
+      }, updateRateMs);
+    }
+  </script>
+  <div class="page">
+    <!-- One TagMark root for the whole benchmark -->
+    <tag-mark
+      def="@TagMark as local"
+      init="{
+        {
+          config: {
+            rows: 80,
+            cols: 80,
+            updateRateMs: 50,
+            updateFraction: 0.05
+          },
+          sensors: [],
+          stats: {
+            tick: 0,
+            lastFrameMs: 0,
+            avgFrameMs: 0
+          }
+        }
+      }"
+      import="startSensorBenchmark,colorForValue"
+    >
+      <h2>TagMark Sensor Wall Benchmark</h2>
+
+      <!-- Start button (onmount not yet implemented) -->
+      <button onclick="@{ startSensorBenchmark(@TagMark) }" style="margin-bottom: 12px; padding: 8px 16px; font-size: 14px;">
+        Start Benchmark
+      </button>
+
+      <div class="controls">
+        <div>
+          <span class="label">Grid:</span>
+          {@TagMark.config.rows} × {@TagMark.config.cols}
+          &nbsp;|&nbsp;
+          <span class="label">Tick interval:</span>
+          {@TagMark.config.updateRateMs} ms
+          &nbsp;|&nbsp;
+          <span class="label">Mutated per tick:</span>
+          { Math.round(@TagMark.config.updateFraction * 100) }%
+        </div>
+        <div>
+          <span class="label">Tick:</span> {@TagMark.stats.tick}
+          &nbsp;|&nbsp;
+          <span class="label">Last frame:</span>
+          {@TagMark.stats.lastFrameMs.toFixed(2)} ms
+          &nbsp;|&nbsp;
+          <span class="label">Avg frame:</span>
+          {@TagMark.stats.avgFrameMs.toFixed(2)} ms
+        </div>
+      </div>
+
+      <div class="legend">
+        ⚠️ &gt; 0.8 &nbsp;&nbsp; ⬇️ &lt; 0.2 &nbsp;&nbsp; • otherwise
+      </div>
+
+      <!-- Sensor grid -->
+      <div class="grid"
+           style="grid-template-columns: repeat({@TagMark.config.cols}, 1fr);">
+        <Loop each="$cell as value, $i as index of {@TagMark.sensors} marked by {$cell.id}">
+          <div class="cell"
+               def="$v := {$cell.value}"
+               style="
+                 background-color: { colorForValue($v) };
+                 opacity: { 0.4 + 0.6 * Math.min(1, Math.abs($cell.trend) * 4) };
+               "
+               title="{
+                 'ID: ' + $cell.id +
+                 '\nValue: ' + $v.toFixed(3) +
+                 '\nTrend: ' + $cell.trend.toFixed(3) +
+                 '\nLast: ' + Math.round($cell.lastUpdated) + ' ms'
+               }">
+            <div class="bar"
+                 style="transform: scaleY({ Math.max(0.05, $v) });"></div>
+            <div class="val">{ $v.toFixed(2) }</div>
+            <div class="icon">
+              <When test="{ $v > 0.8 }">⚠️</When>
+              <Else>
+                <When test="{ $v < 0.2 }">⬇️</When>
+                <Else>•</Else>
+              </Else>
+            </div>
+          </div>
+        </Loop>
+      </div>
+    </tag-mark>
+  </div>
+
+</body>
+</html>

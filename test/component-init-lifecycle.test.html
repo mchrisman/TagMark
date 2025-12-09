@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Component init lifecycle</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Component Init Lifecycle</h1>
+
+<tag-mark-global init="{ {show: true} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <CounterBox:Template params="$name" init="{ { count: 1 } }">
+    <div class="box {$name}">
+      <span class="count">{@CounterBox.count}</span>
+      <button class="inc" onclick="@{ @CounterBox.count = (@CounterBox.count || 0) + 1 }">+</button>
+    </div>
+  </CounterBox:Template>
+
+  <section>
+    <button class="toggle" onclick="@{ @Global.show = !@Global.show }">Toggle</button>
+    <When test="{@Global.show}">
+      <CounterBox class="counter" name="test"></CounterBox>
+    </When>
+
+    <CounterBox class="invalid" init="{ { count: 9 } }" name="double"></CounterBox>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r));
+
+Test.run("component-init-lifecycle", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(async () => {
+    const getCount = selector => Number(document.querySelector(selector)?.textContent.trim() || 0);
+    const clickInc = selector => document.querySelector(selector)?.click();
+
+    // Test 1: template init sets default count
+    t.eq(getCount(".counter .count"), 1, "template init sets default count");
+
+    // Test 2: increments mutate local state
+    clickInc(".counter .inc");
+    clickInc(".counter .inc");
+    await nextTick();
+    t.eq(getCount(".counter .count"), 3, "increments mutate local state");
+
+    // Test 3: state persists across unmount/remount (default behavior)
+    document.querySelector(".toggle").click();
+    await nextTick();
+    document.querySelector(".toggle").click();
+    await nextTick();
+    t.eq(getCount(".counter .count"), 3, "state persists across unmount/remount");
+
+    // Test 4: double init (template + usage) shows error in DOM
+    // ActDown renders errors as visible elements with class "actdown-error"
+    const errorEl = document.querySelector(".actdown-error");
+    const hasError = errorEl?.textContent?.includes("init on both");
+    t.ok(hasError, "double init (template + usage) shows error");
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

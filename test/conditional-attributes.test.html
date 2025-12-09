@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Conditional and boolean attributes</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Conditional and Boolean Attributes</h1>
+
+<p>Tests attribute handling per spec:</p>
+<ul>
+  <li>Returning null/undefined from {expr} omits the attribute</li>
+  <li>Boolean attributes (disabled, checked, etc.) are present if truthy, omitted if falsy</li>
+</ul>
+
+<tag-mark id="root">
+  <!-- Conditional attributes: null/undefined omits -->
+  <div class="with-title" title="{`Hello`}">Has title</div>
+  <div class="no-title" title="{null}">No title (null)</div>
+  <div class="undef-title" title="{undefined}">No title (undefined)</div>
+
+  <!-- Partial interpolation always renders (per spec) -->
+  <div class="partial" data-info="prefix-{null}-suffix">Partial interpolation</div>
+
+  <!-- Boolean attributes -->
+  <button class="enabled-btn" disabled="{false}">Enabled</button>
+  <button class="disabled-btn" disabled="{true}">Disabled</button>
+  <button class="disabled-string" disabled="{'false'}">Disabled='false' (string false)</button>
+
+  <input type="checkbox" class="unchecked" checked="{false}"/>
+  <input type="checkbox" class="checked" checked="{true}"/>
+
+  <input type="text" class="not-readonly" readonly="{false}"/>
+  <input type="text" class="readonly" readonly="{true}"/>
+
+  <!-- Boolean with null/undefined -->
+  <button class="disabled-null" disabled="{null}">disabled=null</button>
+  <button class="disabled-undef" disabled="{undefined}">disabled=undefined</button>
+
+  <!-- Dynamic width attribute -->
+  <div class="has-width" style="width: {100}px">Has width</div>
+  <div class="no-width" style="{null}">No style (null)</div>
+
+  <!-- data-* attributes with conditional values -->
+  <div class="data-present" data-id="{42}">Has data-id</div>
+  <div class="data-absent" data-id="{null}">No data-id</div>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+
+const nextTick = () => new Promise(r => setTimeout(r, 10));
+
+Test.run("conditional-attributes", async t => {
+  await nextTick();
+
+  // Conditional attribute omission
+  const withTitle = document.querySelector(".with-title");
+  const noTitle = document.querySelector(".no-title");
+  const undefTitle = document.querySelector(".undef-title");
+
+  t.eq(withTitle?.getAttribute("title"), "Hello", "title={`Hello`} sets title");
+  t.ok(!noTitle?.hasAttribute("title"), "title={null} omits attribute");
+  t.ok(!undefTitle?.hasAttribute("title"), "title={undefined} omits attribute");
+
+  // Partial interpolation always renders
+  const partial = document.querySelector(".partial");
+  t.ok(partial?.hasAttribute("data-info"), "Partial interpolation renders attribute");
+
+  // Boolean attributes
+  const enabledBtn = document.querySelector(".enabled-btn");
+  const disabledBtn = document.querySelector(".disabled-btn");
+  const disabledString = document.querySelector(".disabled-string");
+
+  t.ok(!enabledBtn?.hasAttribute("disabled"), "disabled={false} omits disabled");
+  t.ok(disabledBtn?.hasAttribute("disabled"), "disabled={true} adds disabled");
+  // Per spec: "false" string should omit the attribute
+  t.ok(!disabledString?.hasAttribute("disabled"), "disabled={'false'} (string) omits disabled");
+
+  // Checkbox checked - check the property, not the attribute
+  // (ActDown correctly sets the DOM property, not the HTML attribute)
+  const unchecked = document.querySelector(".unchecked");
+  const checked = document.querySelector(".checked");
+  t.ok(!unchecked?.checked, "checked={false} leaves checkbox unchecked");
+  t.ok(checked?.checked, "checked={true} checks the checkbox");
+
+  // Readonly
+  const notReadonly = document.querySelector(".not-readonly");
+  const readonly = document.querySelector(".readonly");
+  t.ok(!notReadonly?.hasAttribute("readonly"), "readonly={false} omits readonly");
+  t.ok(readonly?.hasAttribute("readonly"), "readonly={true} adds readonly");
+
+  // Boolean with null/undefined
+  const disabledNull = document.querySelector(".disabled-null");
+  const disabledUndef = document.querySelector(".disabled-undef");
+  t.ok(!disabledNull?.hasAttribute("disabled"), "disabled={null} omits disabled");
+  t.ok(!disabledUndef?.hasAttribute("disabled"), "disabled={undefined} omits disabled");
+
+  // data-* attributes
+  const dataPresent = document.querySelector(".data-present");
+  const dataAbsent = document.querySelector(".data-absent");
+  t.eq(dataPresent?.getAttribute("data-id"), "42", "data-id={42} sets value");
+  t.ok(!dataAbsent?.hasAttribute("data-id"), "data-id={null} omits attribute");
+
+  t.done();
+});
+</script>
+
+</body>
+</html>

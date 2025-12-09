@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Example (passing)</title>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Example Passing Test</h1>
+
+<p>This test demonstrates the harness with assertions that pass.</p>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+Test.run("example-pass", t => {
+  t.ok(true, "true is truthy");
+  t.eq(1 + 1, 2, "basic arithmetic works");
+  t.eq([1, 2, 3], [1, 2, 3], "arrays can be compared");
+  t.eq({ a: 1 }, { a: 1 }, "objects can be compared");
+  t.done();
+});
+</script>
+
+</body>
+</html>

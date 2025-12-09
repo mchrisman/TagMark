@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Form basic binding</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Form Basic Binding</h1>
+
+<tag-mark-global init="{ {bump: 0, submitted: {}} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <section>
+    <form class="login" init="{ {email: 'start@example.com', age: '21'} }" onsubmit="@{ @Global.submitted = {email: @Form.email, age: @Form.age} }">
+      <label>Email <input name="email"></label>
+      <label>Age <input name="age" type="number"></label>
+      <button type="submit">Submit</button>
+      <div class="echo-email">{@Form.email}</div>
+      <div class="echo-age">{@Form.age}</div>
+    </form>
+    <div class="submitted-email">{@Global.submitted.email}</div>
+    <button class="rerender" onclick="@{ @Global.bump = (@Global.bump || 0) + 1 }">Force rerender</button>
+    <div class="stamp">{@Global.bump}</div>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r, 10));
+
+Test.run("form-basic-binding", async t => {
+  await nextTick(); // Wait for TagMark to bootstrap
+
+  const emailInput = document.querySelector("input[name=email]");
+  const ageInput = document.querySelector("input[name=age]");
+  const submitButton = document.querySelector("button[type=submit]");
+
+  if (!emailInput || !ageInput) {
+    t.fail("Form inputs not found - TagMark may not have rendered");
+    t.done();
+    return;
+  }
+
+  const updateInput = (input, value) => {
+    input.value = value;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+
+  t.eq(document.querySelector(".echo-email")?.textContent.trim(), "start@example.com", "initial email bound to @Form");
+  t.eq(document.querySelector(".echo-age")?.textContent.trim(), "21", "initial age bound to @Form");
+
+  updateInput(emailInput, "user@example.com");
+  updateInput(ageInput, "25");
+  await nextTick();
+
+  t.eq(document.querySelector(".echo-email")?.textContent.trim(), "user@example.com", "input changes sync to @Form");
+  t.eq(document.querySelector(".echo-age")?.textContent.trim(), "25", "number field updates @Form");
+
+  submitButton.click();
+  await nextTick();
+  t.eq(document.querySelector(".submitted-email")?.textContent.trim(), "user@example.com", "submit copies @Form into external handle");
+
+  document.querySelector(".rerender")?.click();
+  await nextTick();
+  t.eq(document.querySelector(".echo-email")?.textContent.trim(), "user@example.com", "rerender keeps form state intact");
+
+  t.done();
+});
+</script>
+
+</body>
+</html>

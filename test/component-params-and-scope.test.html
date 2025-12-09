@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Component params and scope</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Component Parameters and Scope</h1>
+
+<tag-mark-global init="{ {targets: { a: { value: 'A' }, b: { value: 'B' } }} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <UserCard:Template params="$name, $greeting, @target">
+    <div class="card" data-name="{$name}">
+      <span class="message">{$greeting}, {$name}</span>
+      <span class="target">{@target.value}</span>
+    </div>
+  </UserCard:Template>
+
+  <section def="$outer := {'Outside'}, $hello := {'Hello'}">
+    <UserCard name="Ada" greeting="{$hello}" target="{@Global.targets.a}"></UserCard>
+    <UserCard name="Ben" greeting="Hi" target="{@Global.targets.b}"></UserCard>
+    <div class="outer">{$outer}</div>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+Test.run("component-params-and-scope", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(() => {
+    const cards = [...document.querySelectorAll(".card")];
+    const messages = cards.map(el => el.querySelector(".message")?.textContent.trim());
+    const targets = cards.map(el => el.querySelector(".target")?.textContent.trim());
+
+    t.eq(messages, ["Hello, Ada", "Hi, Ben"], "parameters bind per instance");
+    t.eq(targets, ["A", "B"], "handle parameters follow provided paths");
+    t.eq(document.querySelector(".outer")?.textContent.trim(), "Outside", "parent scope remains outside component");
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

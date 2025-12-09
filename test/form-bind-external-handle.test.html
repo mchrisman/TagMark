@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Form bind to external handle</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Form bind external handle</h1>
+
+<tag-mark-global init="{ {login: { email: 'start@example.com', remember: false }, show: true} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <section>
+    <button class="toggle" onclick="@{ @Global.show = !@Global.show }">Toggle Form</button>
+    <When test="{@Global.show}">
+      <form class="login" bind="@Global.login">
+        <input name="email">
+        <label><input type="checkbox" name="remember">Remember</label>
+      </form>
+    </When>
+    <div class="email-value">{@Global.login.email}</div>
+    <div class="remember-value">{@Global.login.remember}</div>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r));
+
+Test.run("form-bind-external-handle", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(async () => {
+    const emailInput = document.querySelector("input[name=email]");
+    const rememberInput = document.querySelector("input[name=remember]");
+
+    const update = (el, value) => {
+      if (el.type === "checkbox") {
+        el.checked = value;
+      } else {
+        el.value = value;
+      }
+      el.dispatchEvent(new Event(el.type === "checkbox" ? "change" : "input", { bubbles: true }));
+    };
+
+    t.eq(document.querySelector(".email-value")?.textContent.trim(), "start@example.com", "bound form seeds from external state");
+
+    update(emailInput, "new@example.com");
+    update(rememberInput, true);
+    await nextTick();
+    t.eq(document.querySelector(".email-value")?.textContent.trim(), "new@example.com", "external handle updates from form");
+    t.eq(document.querySelector(".remember-value")?.textContent.trim(), "true", "checkbox writes boolean to handle");
+
+    document.querySelector(".toggle")?.click();
+    await nextTick();
+    document.querySelector(".toggle")?.click();
+    await nextTick();
+    t.eq(document.querySelector("input[name=email]")?.value, "new@example.com", "bound form restores external state on remount");
+
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

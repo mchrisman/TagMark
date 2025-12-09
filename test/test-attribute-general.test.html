@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: test attribute on general elements</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Test Attribute on General Elements</h1>
+
+<p>Per the spec execution order, <code>test</code> is evaluated (step 6) on any element, not just <code>&lt;When&gt;</code>.
+Elements with a falsy <code>test</code> should not render.</p>
+
+<tag-mark id="root">
+  <!-- Basic: element with truthy test renders -->
+  <div class="truthy-test" test="{true}">I should appear</div>
+
+  <!-- Basic: element with falsy test does not render -->
+  <div class="falsy-test" test="{false}">I should NOT appear</div>
+
+  <!-- Expression-based test -->
+  <div class="expr-test" test="{5 > 3}">Five is greater than three</div>
+
+  <!-- Null/undefined test is falsy -->
+  <div class="null-test" test="{null}">Null test - should NOT appear</div>
+
+  <!-- Zero is falsy -->
+  <div class="zero-test" test="{0}">Zero test - should NOT appear</div>
+
+  <!-- Empty string is falsy -->
+  <div class="empty-test" test="{``}">Empty string test - should NOT appear</div>
+
+  <!-- Non-empty string is truthy -->
+  <div class="string-test" test="{'hello'}">Non-empty string - should appear</div>
+
+  <!-- test on nested elements -->
+  <div class="parent">
+    <span class="child-visible" test="{true}">Visible child</span>
+    <span class="child-hidden" test="{false}">Hidden child</span>
+  </div>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+
+const nextTick = () => new Promise(r => setTimeout(r, 10));
+
+Test.run("test-attribute-general", async t => {
+  await nextTick();
+
+  // Truthy tests render
+  t.ok(document.querySelector(".truthy-test"), "Element with test={true} renders");
+  t.ok(document.querySelector(".expr-test"), "Element with test={5 > 3} renders");
+  t.ok(document.querySelector(".string-test"), "Element with test={'hello'} renders");
+
+  // Falsy tests don't render
+  t.ok(!document.querySelector(".falsy-test"), "Element with test={false} does not render");
+  t.ok(!document.querySelector(".null-test"), "Element with test={null} does not render");
+  t.ok(!document.querySelector(".zero-test"), "Element with test={0} does not render");
+  t.ok(!document.querySelector(".empty-test"), "Element with test={''} does not render");
+
+  // Nested elements
+  t.ok(document.querySelector(".parent"), "Parent element renders");
+  t.ok(document.querySelector(".child-visible"), "Child with truthy test renders");
+  t.ok(!document.querySelector(".child-hidden"), "Child with falsy test does not render");
+
+  t.done();
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Loop isFirst/isLast bindings</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Loop isFirst/isLast Bindings</h1>
+
+<p>Tests that <code>isFirst</code> and <code>isLast</code> bindings work correctly in loops.</p>
+
+<tag-mark id="root">
+  <ul class="items">
+    <Loop each="$item as value, $first as isFirst, $last as isLast of {['A', 'B', 'C']} marked by index">
+      <li class="item" data-first="{$first}" data-last="{$last}">{$item}</li>
+    </Loop>
+  </ul>
+
+  <!-- Single item list -->
+  <ul class="single">
+    <Loop each="$item as value, $first as isFirst, $last as isLast of {['Only']} marked by index">
+      <li class="single-item" data-first="{$first}" data-last="{$last}">{$item}</li>
+    </Loop>
+  </ul>
+
+  <!-- Empty list (for completeness) -->
+  <ul class="empty">
+    <Loop each="$item as value, $first as isFirst, $last as isLast of {[]} marked by index">
+      <li class="empty-item">{$item}</li>
+    </Loop>
+    <Else><li class="no-items">No items</li></Else>
+  </ul>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+
+const nextTick = () => new Promise(r => setTimeout(r, 10));
+
+Test.run("loop-isfirst-islast", async t => {
+  await nextTick();
+
+  const items = document.querySelectorAll(".item");
+
+  t.eq(items.length, 3, "Three items rendered");
+
+  // First item
+  t.eq(items[0]?.dataset.first, "true", "First item has isFirst=true");
+  t.eq(items[0]?.dataset.last, "false", "First item has isLast=false");
+
+  // Middle item
+  t.eq(items[1]?.dataset.first, "false", "Middle item has isFirst=false");
+  t.eq(items[1]?.dataset.last, "false", "Middle item has isLast=false");
+
+  // Last item
+  t.eq(items[2]?.dataset.first, "false", "Last item has isFirst=false");
+  t.eq(items[2]?.dataset.last, "true", "Last item has isLast=true");
+
+  // Single item list - both isFirst and isLast should be true
+  const singleItem = document.querySelector(".single-item");
+  t.eq(singleItem?.dataset.first, "true", "Single item has isFirst=true");
+  t.eq(singleItem?.dataset.last, "true", "Single item has isLast=true");
+
+  // Empty list shows Else content
+  const noItems = document.querySelector(".no-items");
+  t.ok(noItems, "Empty list shows Else content");
+
+  t.done();
+});
+</script>
+
+</body>
+</html>

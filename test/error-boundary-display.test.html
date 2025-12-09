@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Error boundary display</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Error Boundary Display</h1>
+
+<tag-mark id="root">
+  <!-- Wrap in component so ActDown's error boundary catches it -->
+  <Exploder:Template>
+    <div class="explode">{@Global.invalid = 1}</div>
+  </Exploder:Template>
+  <Exploder></Exploder>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+Test.run("error-boundary-display", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(() => {
+    // Errors now display inline as [Error: message] or ActDown may catch them
+    const errorEl = document.querySelector(".actdown-error");
+    const explodeEl = document.querySelector(".explode");
+    const inlineError = explodeEl?.textContent?.toLowerCase() || "";
+
+    // Error surfaces either via ActDown's .actdown-error or our inline [Error: ...]
+    const hasUiError = errorEl != null || inlineError.includes("error");
+    const errorText = errorEl?.textContent?.toLowerCase() || inlineError;
+
+    t.ok(hasUiError, "error surfaces through visible boundary");
+    t.ok(errorText.includes("pure") || errorText.includes("mutate"), "error message describes the issue");
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

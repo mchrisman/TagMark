@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Marker attribute stability</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Marker Attribute</h1>
+
+<tag-mark-global init="{ {items: [{label: 'Alpha'}, {label: 'Beta'}]} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <CounterTile:Template params="$label" init="{ { clicks: 0 } }">
+    <div class="tile" data-label="{$label}">
+      <span class="label">{$label}</span>
+      <span class="clicks">{@CounterTile.clicks}</span>
+      <button class="hit" onclick="@{ @CounterTile.clicks = (@CounterTile.clicks || 0) + 1 }">Hit</button>
+    </div>
+  </CounterTile:Template>
+
+  <section>
+    <button class="swap" onclick="@{ @Global.items = [...@Global.items].reverse() }">Swap</button>
+    <div class="tiles">
+      <Loop each="$item as value of {@Global.items} marked by {$item.label}">
+        <CounterTile label="{$item.label}"></CounterTile>
+      </Loop>
+    </div>
+  </section>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r));
+
+Test.run("marker-attribute", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(async () => {
+    const clickCounts = () => [...document.querySelectorAll(".tile")].map(el => ({
+      label: el.querySelector(".label")?.textContent.trim(),
+      clicks: Number(el.querySelector(".clicks")?.textContent.trim())
+    }));
+
+    document.querySelector(".tiles .hit")?.click();
+    await nextTick();
+    t.eq(clickCounts().map(c => c.clicks), [1, 0], "local state updates before reorder");
+
+    document.querySelector(".swap")?.click();
+    await nextTick();
+
+    const after = clickCounts();
+    t.eq(after.map(c => c.label), ["Beta", "Alpha"], "DOM order follows data order");
+    t.eq(after.map(c => c.clicks), [0, 1], "marker keeps state attached to label instead of position");
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: Manual field bind overrides</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Manual Field Bind</h1>
+
+<tag-mark-global init="{ {profile: {alt: 'Initial'}, formData: {}} }"></tag-mark-global>
+
+<tag-mark id="root">
+  <form class="mixed" bind="@Global.formData">
+    <input name="first" value="Ada">
+    <input name="nickname" bind="@Global.profile.alt" value="A">
+    <input name="last" value="Lovelace">
+  </form>
+  <div class="form-first">{@Global.formData.first}</div>
+  <div class="form-last">{@Global.formData.last}</div>
+  <div class="form-nickname">{@Global.formData.nickname}</div>
+  <div class="external-nick">{@Global.profile.alt}</div>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+const nextTick = () => new Promise(r => setTimeout(r));
+
+Test.run("manual-field-bind", t => {
+  if (!window.TagMark || typeof TagMark.ready !== "function") {
+    t.fail("TagMark not available");
+    t.done();
+    return;
+  }
+
+  TagMark.ready(async () => {
+    const update = (selector, value) => {
+      const input = document.querySelector(selector);
+      input.value = value;
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+
+    update("input[name=first]", "Alan");
+    update("input[name=last]", "Turing");
+    update("input[name=nickname]", "Ace");
+    await nextTick();
+
+    t.eq(document.querySelector(".form-first")?.textContent.trim(), "Alan", "default field binds into @Form");
+    t.eq(document.querySelector(".form-last")?.textContent.trim(), "Turing", "second default field binds into @Form");
+    t.eq(document.querySelector(".external-nick")?.textContent.trim(), "Ace", "explicit bind routes to external handle");
+    t.ok(!document.querySelector(".form-nickname")?.textContent.trim(), "override keeps field out of @Form");
+    t.done();
+  });
+});
+</script>
+
+</body>
+</html>

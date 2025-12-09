@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: as local state</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script src="../src/tagmark.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<h1>Explicit Local State with `as local`</h1>
+
+<p>Tests that arbitrary elements can have local state via <code>def="@name as local"</code>.</p>
+
+<tag-mark id="root">
+  <div def="@box as local" class="box">
+    <button class="inc" onclick="@{ @box.count = (@box.count || 0) + 1 }">+</button>
+    <span class="count">{@box.count || 0}</span>
+  </div>
+
+  <!-- Two sibling divs with their own local state -->
+  <div def="@left as local" class="left-panel">
+    <button class="left-inc" onclick="@{ @left.val = (@left.val || 0) + 1 }">Left +</button>
+    <span class="left-val">{@left.val || 0}</span>
+  </div>
+
+  <div def="@right as local" class="right-panel">
+    <button class="right-inc" onclick="@{ @right.val = (@right.val || 0) + 1 }">Right +</button>
+    <span class="right-val">{@right.val || 0}</span>
+  </div>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+
+const nextTick = () => new Promise(r => setTimeout(r, 10));
+
+Test.run("as-local-state", async t => {
+  await nextTick(); // wait for TagMark to bootstrap
+
+  // Test 1: Basic local state works
+  const countEl = document.querySelector(".count");
+  const incBtn = document.querySelector(".inc");
+
+  t.eq(countEl?.textContent?.trim(), "0", "Initial count is 0");
+
+  incBtn?.click();
+  await nextTick();
+
+  t.eq(countEl?.textContent?.trim(), "1", "Count increments to 1");
+
+  // Test 2: Sibling local states are isolated
+  const leftVal = document.querySelector(".left-val");
+  const rightVal = document.querySelector(".right-val");
+  const leftInc = document.querySelector(".left-inc");
+  const rightInc = document.querySelector(".right-inc");
+
+  t.eq(leftVal?.textContent?.trim(), "0", "Left panel starts at 0");
+  t.eq(rightVal?.textContent?.trim(), "0", "Right panel starts at 0");
+
+  leftInc?.click();
+  leftInc?.click();
+  await nextTick();
+
+  t.eq(leftVal?.textContent?.trim(), "2", "Left panel incremented to 2");
+  t.eq(rightVal?.textContent?.trim(), "0", "Right panel unchanged (isolated)");
+
+  rightInc?.click();
+  await nextTick();
+
+  t.eq(leftVal?.textContent?.trim(), "2", "Left panel still 2");
+  t.eq(rightVal?.textContent?.trim(), "1", "Right panel incremented to 1");
+
+  t.done();
+});
+</script>
+
+</body>
+</html>
