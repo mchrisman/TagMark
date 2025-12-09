@@ -13,7 +13,7 @@ Although meant to be quite usable by humans, LLM friendliness is of equal import
 - Lack of training data on the web is actually a bonus: A carefully constructed cookbook must be provided, but there are no competing bad patterns out on the web.
 - Syntax is explicit
 
-*Additional thoughts*: With regard to ecosystem, I haven't articulated this before, but have a few heretical thoughts. **This is intended to be a frozen language with no ecosystem** (once polished, and permitting safe nonbreaking bugfixes). No evolution to confuse LLMs with multiple paradigms. No feature bloat[^1] to detract from the core advantage that it's small enough for an LLM to assimilate at a glance, source code and all. An explicit provided training set/cookbook to encourage consistent results and presented as definitive in preference to whatever examples may be found on the web. Lack of massive layered frameworks is seen as an advantage in prototyping and small, cheap apps.
+*Additional thoughts*: With regard to ecosystem, I haven't articulated this before, but have a few heretical thoughts. **This is intended to be a frozen language with no ecosystem** (once polished, and permitting *transparent* bugfixes and performance optimizations). No evolution to confuse LLMs with multiple paradigms. No feature bloat[^1] to detract from the core advantage that it's small enough for an LLM to assimilate at a glance, source code and all. An explicit provided training set/cookbook to encourage consistent results and presented as definitive in preference to whatever examples may be found on the web. Lack of massive layered frameworks is seen as an advantage in prototyping and small, cheap apps.
 
 [^1] Except for two additional optional layers that are in conceptual stage:
 

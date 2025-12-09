@@ -1,5 +1,5 @@
 
-# TagMark User Guide
+# TagMark overview
 
 TagMark is a no-build HTML/JS extension.
 Drop <tag-mark> tags into your page. 
@@ -10,13 +10,9 @@ Elements have state, forms in tabs don't lose their data.
 Stable language, intentionally LLM-friendly. Good for humans too.
 One manual. One cookbook. Zero ecosystem. What a relief!
 
-TagMark drops into your web page.11111
-Drop <tag-mark> into your page. Enhance your HTML.
-Compact apps, compact grammar
-Resurrected forms don't stammer
-Stable language, designed for LLM coders. Good for humans too.
-One manual. One cookbook. Zero ecosystem. What a relief!
+# First example
 
+This will let you taste the language. The code is mostly readable even to the uninitiated.
 
 ```html
 <h2>Todo List</h2>
@@ -29,13 +25,15 @@ One manual. One cookbook. Zero ecosystem. What a relief!
 
     <button disabled="{!@List.text}"
             def="$textValue:={@List.text}"
-            onclick="@{ @List.items[@List.nextId++]= $textValue , @List.text = '' }">
+            onclick="@{ @List.items[@List.nextId++]= $textValue , 
+                        @List.text = '' }">
         Add
     </button>
 
     <Loop each="$item as value, $i as index of {@List.items} marked by {$i}">
         <div>
             <span>{$item}</span>
+            <!-- Loop can handle sparse arrays -->
             <button onclick="@{ delete @List.items[$i] }">
                 Delete
             </button>
@@ -47,128 +45,153 @@ One manual. One cookbook. Zero ecosystem. What a relief!
 
 </tag-mark>
 ```
-Notes: `@List.txt` isn't a resolved value, it's a handle into live state.  `{ }` denotes a pure expression, in which handles are resolved; `@{ }` denotes a possibly effectful expression, in which handles are reactive proxies.  `<Loop>` can handle sparse arrays.
+# TagMark's niche
+
+**TagMark optimizes for:** 
+- Simplicity; explicit, visible behavior
+- Compact expression
+- Zero-build
+- LLM Friendliness
+   - Small syntax, compact apps, small implementation, all easily fits in LLM's context window
+   - Frozen language. Usually just one way to do things.
+   - Explicit cookbook with carefully curated examples. Patterns emphasized over libraries.
+   - New language, no corpus of bad patterns on the web.
+
+**React optimizes for:**
+- large teams
+- large apps
+- performance
+- ecosystem
+
+## When to Use TagMark
+
+✅ Quick prototypes and demos
+✅ Internal tools and admin panels  
+✅ Teaching reactive concepts
+✅ Single-file applications
+✅ Hobby projects
+✅ Interactive documents
+✅ Progressive enhancement of existing pages
+✅ LLM-generated UIs
+✅ No-build-step requirement
+
+## When to Use React/Vue/Svelte
+
+✅ Large production applications
+✅ Mobile apps (React Native)
+✅ Need for extensive component ecosystem
+✅ Team already knows it
+✅ Complex state management requirements
+✅ Performance-critical applications
+
 
 -----------------------------------------------------------------
 
-# **1. What is TagMark?**
+# User guide
 
-TagMark is a **declarative UI language** embedded directly inside HTML.
-You write ordinary HTML, plus a few special tags and expressions:
+# Key Concept: **Handles and State**
 
-* `{expr}` → **pure expression** (reads state, cannot modify anything)
-* `@{expr}` → **effect expression** (may update state when events fire)
+TagMark is built around the concept of **handles** into **state objects**.  A handle is a pointer to a *place* (which may or may not exist) in the state object's tree.  It looks like this:
 
-Apps have **explicit, predictable state** stored in named *handles* like:
+    `@Global.company.employees`
 
-* `@Global` — shared state for the whole page
-* `@Url` — state synced with the URL hash
-* `@Form` — form-local state
-* `@ComponentName` — per-instance component state
+Here, `@Global` is the global state object; and '.company.employees' points to a *place* (which may or may not exist) in that object's tree. 
 
-There is **no build step**, no magic reactivity, and no hidden scopes.
-TagMark is *just HTML* plus a small predictable set of rules.
+    `<div>There are {@Global.company.employees.length()} employees.</div>`
 
----
+Handles can be used in JavaScript expressions for both reading and mutating state. **Any state mutation triggers a full DOM refresh.** (There is deliberately no control over this. We sacrifice performance for predictability.) 
 
-# **2. The Mental Model**
+    `<button onclick="@{@Global.company.employees[$userId].name=$newName}>Change name</button>`
 
-TagMark expresses UI as **HTML + reactive state handles**.
+**@Global** is not the only state handle. You have:
 
-* A *handle* (`@Something.path`) refers to a location inside shared application state.
-* A `{…}` pure expression **reads** from handles but always produces plain values.
-* A `@{…}` effect expression can **write** to handles and update state.
+| **State handle**             | **Lexical scope**             | Associated with identity of           |
+|------------------------------|-------------------------------|---------------------------------------|
+| @Global                      | Anywhere                      | nothing                               |
+| @TagMark                     | The enclosing <tag-mark> root | The enclosing <tag-mark> root element |
+| @Form                        | The enclosing form            | The enclosing form element            |
+| @Foo (for a "Foo" component) | The <Foo:Template>            | A <Foo> element                       |
 
-When state changes, TagMark re-renders the relevant DOM.
+And **any element** may have its own local state object, declared "as local", which persists even if the element is hidden then re-shown:
 
-Try to remember only three things:
+    `<span def="@MyState as local">`
 
-1. **Handles reference state; they are never values on their own.**
-2. **Pure expressions cannot mutate state.**
-3. **Effect expressions are only for event handlers.**
+You can initialize local state with 'init':
 
----
+    `<span def="@MyState as local" init="{ {x:1,y:2} }">`
 
-# **3. Expressions**
+You can define aliases:
 
-## **3.1 Pure expressions `{ ... }`**
+    `<div def="@Name := @Global.loggedInUser.name">`
 
-* Evaluated in *pure mode*.
-* May read from `@handles` but cannot mutate.
-* The result becomes text or an attribute value.
+# Key Concept: Stable Identities (SID)
 
-Examples:
+In TagMark, **every** runtime element is marked with a **stable identity (SID).** The SID answers the question of which elements are "the same element" as the DOM changes over time.  Local state objects are
+tied to an SID.
 
-```html
-<div>{ 1 + 2 }</div>
-<div>{ @Global.count }</div>
-<div>{ @Todo.done ? "Done" : "Pending" }</div>
+This is best understood with an illustration.
+
+    <Loop each="$switch as value of {$lightSwitches} marked by {$switch.id}">
+        <div def="@Local as local">
+            <input type=checkbox 
+                   bind="@Local.toggle" 
+                   onclick="@{@local.toggle = !@local.toggle}"> 
+            Light {$switch.name}
+        </div>
+    </Loop>
+
+Each `<div>` gets its own SID, and therefore its own @Local state with its own toggle flag. The 'marked by' clause in <Loop> is mandatory. It distinguishes between the repeated elements in the loops, so that they can each have their own SID, which is stable, even if the list is reordered. **If an element is removed from the list and then added back, it retains its identity and its state**, even though it may be realized as a new DOM element.
+
+👉🏻 **Subtle difference from React**:  In React, the 'key' attribute is really just a performance aide.  In TagMark, the 'marked by' clause influences how state persists. In this example, if you say "marked by {$switch.id}", then the checkbox state will stay with the particular switch even if the switches are reordered. But if you say "marked by index", then the checkbox state will stay with the iteration index, ignoring the actual identities of the switches.
+
+There will be more examples later.
+
+# Key Concept: declarations and expressions
+
+TagMark is its own language. Although it interoperates with JavaScript.
+
+TagMark has three kinds of variables. All of them are lexically scoped to the tag in which they are declared (in the source code) and its children. All of them may be shadowed by declarations of children.
+
+- **1. Handles (@Foo)**, as explained before.
+
+- **2. Constants ($bar)**, declared with 'def'. It is only constant within its lexical scope. It may take a different value on each rendering pass.  Within the body of a loop, it may take a different value on each iteration.
+
+- **3. Imported JavaScript symbols**, imported with 'import'. **Caution**: This has nothing to do with ES5 module imports. It just brings in the x and y symbols from the local JavaScript lexical environment.
+
+```
+   <div def="$two := {1+1}            // Simple JS expression
+             $three := {$ef+1}        // TagMark variables can appear in JavaScript expressions. 
+             $name := {@User.name}    // The handle is resolved to its current value (more below)
+             
+             // Special forms          
+             @Cd as @Ab[$i],          // Define a handle alias.
+             @Ab as local,            // Give a name to this element's local namespace
+             $r as reference"/>       // Like 'ref' in React, points to DOM node, but in TagMark,
+                                      // $r is a managed object: $r.el in future always tracks 
+                                      // the DOM element associated with the same identity.
+   
+   <script> let x=5; let plus=(a,b)=>a+b; </script>      
+                                
+   <div import="plus,x" def="$y:=10">
+       Total: {plus(x,$y)}  <!-- 15 -->
+   </div> 
 ```
 
-If a pure expression attempts a write, TagMark throws a hard error.
+JavaScript expressions are always, without exception, enclosed in curly brackets. There are two forms:
 
----
+**"Pure" expressions: `{expression}`**
+- Not permitted to mutate state as a side effect.
+- Handles are visible but are made immutable. Attempts to mutate them will throw an error. 
+- They resolve to their current values.
 
-## **3.2 Effect expressions `@{ ... }`**
+**"Effective" expressions: `@{expression}`**
+- May mutate state as a side effect.
+- Handles are expressed as deep proxies, which intercept mutations in order to trigger refreshes.
+- The mutable handles may be passed to external JavaScript code. If so, they remain reactive. This is the normal way to allow external JavaScript to interact with TagMark state.
+- Effective expressions are only permitted in handlers such as `onClick`, `onMount`, etc. They are not permitted in the path of a rendering cycle (i.e in ordinary attributes or text interpolations.)
 
-Used only in event handlers (`onclick`, `onsubmit`, etc).
 
-```html
-<button onclick="@{ @Global.count = (@Global.count || 0) + 1 }">
-    Add
-</button>
-```
-
-Effect expressions access handles in “effect mode,” meaning reads and writes go directly to underlying reactive state.
-
-Allowed constructs:
-
-* Assignment: `@Foo.x = 5`
-* Increment/decrement: `@Foo.x++`
-* Call simple imported functions
-* Basic JS expressions
-
----
-
-# **4. Variables and Handles**
-
-## **4.1 `$variables`**
-
-Lexically scoped constants:
-
-```html
-<div def="$x := { 3 * 7 }">{ $x }</div>
-```
-
-They do not change.
-
----
-
-## **4.2 `@handles`**
-
-Handles reference specific reactive namespaces.
-
-### Built-in handle roots:
-
-| Handle           | Meaning                        |
-| ---------------- | ------------------------------ |
-| `@Global`        | shared across the page         |
-| `@Url`           | synced with URL hash           |
-| `@Form`          | state for a specific `<form>`  |
-| `@TagMark`       | root-level local state         |
-| `@ComponentName` | local state within a component |
-
-You access deeper paths by dot notation:
-
-```html
-{@Global.user.name}
-```
-
----
-
-# **5. Control Flow**
-
-## **5.1 Conditionals: `<When>` and `<Else>`**
+# **Conditionals: `<When>` and `<Else>`**
 
 ```html
 <When test="{@Global.loading}">
@@ -186,58 +209,103 @@ Rules:
 
 * `<Else>` must follow a `<When>` or `<Loop>`.
 * First matching branch renders; others are skipped.
-* Each branch has its own identity for state purposes.
+* Each branch has its own Stable Identity (SID) for state purposes. If you have widgets with local state inside the branches, for example form fields, their state persists as you switch back and forth.
+* Switching branches does not affect the stability of any SIDs (in parents, children, anywhere)
+* Normal rules of lexical scoping apply. Symbols declared on the `<When>` tag are not visible in the `<Else>` tag.
 
 ---
 
-## **5.2 Loops: `<Loop>`**
+# **Loops: `<Loop>`**
 
-### Basic form:
+## Simple form
+
+The simple form iterates over the **items** of an array or the **values** of an object's fields.
 
 ```html
-<Loop each="$item as value of {@Global.items} marked by {$item.id}">
-    <div>{$item.name}</div>
+<Loop each="$x of {@Global.items} marked by {$item.id}">
+    <div>{$x.name}</div>
 </Loop>
 ```
-
-Key points:
-
-* `each=` determines iteration variables.
-* `marked by` determines **row identity** (important for preserving per-row state).
-* Values inside `{}` are evaluated in pure mode.
-
 Shortcuts:
 
-* Arrays may use `marked by index`.
-* Objects may use `marked by field`.
+* Arrays may use `marked by index` **if appropriate**
+* Objects may use `marked by field` **if appropriate**
 
-Example with indices:
+## Long form
 
+In the long form, there are a few other variables you can declare. The actual variable names are arbitrary.
+
+**When iterating over an array:** Both "as value" and "marked by" are mandatory.
 ```html
-<Loop each="$i as index, $v as value of {@Global.colors} marked by index">
+<Loop each="$i as index,         // array index (For sparse arrays, missing indices will be skipped.)
+            $v as item,          // item of array
+            $first as isFirst,   // boolean
+            $last as isLast      // boolean
+            of {@Global.colors} marked by index">
     {$i}: {$v}
 </Loop>
 ```
+
+**Quit iterating over fields in an object:** At least one of ("as value", "as field") is mandatory; "marked by" is mandatory. No guarantee is made about the order of the fields. The isFirst/isLast refer to the first and last iteration.
+
+```html
+<Loop each="$i as index,         // iteration index
+            $k as field,         // field name / key
+            $v as value,         // value of field
+            $first as isFirst,   // boolean - first of the *iteration*
+            $last as isLast      // boolean - last of the *iteration*
+            of {@Global.colors} marked by field">
+    {$k}: {$v}
+</Loop>
+```
+
+
+
+
+## Nested loops
+
+Nested loops are just fine. To avoid confusion, don't shadow variables. Each loop needs its own 'marked by' clause, giving an identity marker relevant to that loop. The markers don't have to be globally unique. They just have to be unique amongst their siblings.
+```html
+
+<Loop each="$cat of {@categories} marked by {$cat.id}">
+    <Loop each="$item of {$cat.items} marked by {$item.id}">
+        ...
+    </Loop>
+</Loop>
+```
+
+
+
+
 
 ---
 
 # **6. Components**
 
-Components are declared using `<Name:Template>` and used via `<Name>`.
+TagMark components (not web components, unless you want them to be) are declared using `<Name:Template>` and used via `<Name>`.
 
-### **Definition:**
 
 ```html
-<Counter:Template params="@count">
-    <button onclick="@{ @count++ }">+</button>
-    <div>Value: {@count}</div>
+<Counter:Template params="@COUNT,$INCREMENT">
+    <button onclick="@{ @COUNT+=$INCREMENT }">+</button>
+    <div>Value: {@COUNT}</div>
 </Counter:Template>
 ```
 
-### **Usage:**
+Pass @handles using `@{ }`. Pass $values using `{ }` (or without braces for "string literals").
+
+| Parameter Type | How to Pass                                                                               | Example                                        |
+|---|-------------------------------------------------------------------------------------------|------------------------------------------------|
+| `@handle` | `COUNT="@{@Global.count}"`                                                                | Passes reactive handle                         |
+| `$value` | `INCREMENT="{10}"` or `INCREMENT="{someExpression}"` or `INCREMENT="{@Global.increment}"` | Passes evaluated value (not a reactive handle) |
+| `$value` (string) | `VALUE="hello"` or `VALUE="{'hello'}"`                                                    | String literal (braces optional)               |
+
+
+
+The parameter names needn't be uppercase. This example uses uppercase to make clear the distinction between the parameter and the input.
 
 ```html
-<Counter count="{@Global.total}"/>
+<Counter count="@{@Global.total}" increment="{10}"/>
 ```
 
 ### Component-local state:
@@ -255,9 +323,11 @@ Inside `<Counter:Template>`, the handle `@Counter` refers to its own local names
 </Counter:Template>
 ```
 
-State persists as long as the component retains the same identity (SID).
-
----
+When you use <Counter> multiple times, each gets its own @Counter namespace tied to its own SID. So each Counter maintains separate @Counter.expanded state.
+```
+<Counter count="@{@Global.a}" increment="{1}"/>
+<Counter count="@{@Global.b}" increment="{5}"/>
+```  
 
 ## **6.1 Slots**
 
@@ -272,11 +342,52 @@ Components may accept children:
 <Card title="{'Hello'}">
     <p>World</p>
 </Card>
+
+Renders as
+
+<Card>
+    <h2>Hello</h2>
+    <p>World</p>
+</Card>
+
 ```
+
+## Named slots; slots with params
+
+It's a little unintuitive, but slots are essentially callbacks, so params work in the opposite direction.
+
+We embrace the use of custom tags. Every component will be realized as a tag of the same name.
+
+```html
+<List:Template params="$items">
+    <Loop each="$item as value, $i as index of {$items} marked by {$item.id}">
+        <row:Slot item="{$item}" index="{$i}">
+            <!-- default row -->
+            <div>{$i}: {$item.name}</div>
+        </row:Slot>
+    </Loop>
+</List:Template>
+```
+
+Usage:
+
+```html
+
+<List items="{@Global.users}">
+    <row params="$item,$index">
+        <span>{$index+1}.</span>
+        <strong>{$item.name}</strong>
+    </row>
+</List>
+```
+
+
+
+
 
 ---
 
-# **7. Forms**
+# **Forms**
 
 Every `<form>` automatically receives a local state namespace called `@Form`.
 
@@ -285,15 +396,14 @@ Every `<form>` automatically receives a local state namespace called `@Form`.
     <input name="email"/>
 </form>
 ```
+A field’s `name` determines the corresponding key in `@Form`. The fields bind to the @Form automatically, and values persist across rerenders, even if the form disappears and then later reappears.
 
-Rules:
+You can override binding, either for the whole form or for single fields:
 
-* A field’s `name` determines the corresponding key in `@Form`.
-* Values persist across rerenders.
-* You can override binding using:
+Fields that are not inside a form tag get no reactive behavior unless you explicitly bind them individually.
 
 ```html
-<input name="email" bind="@User.email"/>
+    <input name="email" bind="@User.email"/>
 ```
 
 ### Special field behaviors:
@@ -305,11 +415,32 @@ Rules:
 | radio           | selected value                 |
 | select multiple | array of values                |
 
+Other than the above, forms get no special treatment. They submit normally. Their event handlers work normally. You can add event handlers to handle the submission using `TagMark`.
 ---
 
-# **8. Initialization (`init`)**
+# Forward references
 
-You may initialize a component or form’s state:
+This is especially useful for sharing element references or form state. It avoids a couple of anti-patterns that would otherwise come to mind.
+
+```
+<div forward-def="$r">
+    <div def="$r as reference">...</div>
+    <div onmount="@{doSomething($r)}"/>
+</div>
+
+<div forward-def="@name">
+    <form def="@name as @Form.name">
+        ... form fields including a name field ...
+    </form>
+    Name: {@name}
+</div>
+```
+
+
+
+# **Initialization (`init`)**
+
+You may initialize a local state:
 
 ```html
 <Foo init="{ {open: false, count: 0} }">
@@ -317,14 +448,12 @@ You may initialize a component or form’s state:
 </Foo>
 ```
 
-Rules:
+`init` runs **once per SID**. It must evaluate to an object. 
 
-* `init` runs **once per SID**, before the first render.
-* May appear on the template *or* on the usage, not both.
-* Must evaluate to an object.
-* Cannot be used on bound forms.
+For components, it may appear on the template or on the usage, but not both.
 
----
+Cannot be used in conjunction with 'bind'.
+
 
 # **9. URL Synchronization**
 
