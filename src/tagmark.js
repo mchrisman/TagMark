@@ -215,6 +215,26 @@
 
     // ---- Expressions ----
 
+    let ExpressionStrategy = {
+        /**
+         * Create a callable JavaScript function for a TagMark expression.
+         *
+         * @param {string[]} params - Parameter names
+         * @param {string} body    - Expression text placed inside `return (...)`
+         * @returns {Function}
+         */
+        makeFunction(params, body) {
+            return new Function(...params, `"use strict";return (${body});`);
+        },
+    };
+
+    function setExpressionStrategy(strategy) {
+        if (!strategy || typeof strategy.makeFunction !== 'function') {
+            throw new Error('TagMark expression strategy must provide makeFunction(params, body)');
+        }
+        ExpressionStrategy = strategy;
+    }
+
     const HANDLE_PREFIX = '$H$';
 
     // Transform @Handle references to $H$Handle for valid JS identifiers
@@ -271,7 +291,7 @@
             const aliasToCanon = this._buildAliases(ciVars);
             const params = this._buildParamNames(ciVars, csNames, aliasToCanon);
 
-            this.fn = new Function(...params, `"use strict";return (${this.expr});`);
+            this.fn = ExpressionStrategy.makeFunction(params, this.expr);
             this.params = params;
             this.aliasToCanon = aliasToCanon;
         }
@@ -757,7 +777,7 @@
             try {
                 const knownHandles = new Set(Object.keys(flat.handles));
                 const transformed = transformHandles(expr, knownHandles);
-                new Function(`"use strict";return (${transformed});`);
+                ExpressionStrategy.makeFunction([], transformed);
                 result = true;
             } catch {
                 result = false;
@@ -1473,6 +1493,7 @@
         createScope: (parent) => new Scope(parent),
         getExprCacheStats: () => runtime.getExprCacheStats(),
         resetExprCache: () => runtime.resetExprCache(),
+        setExpressionStrategy,
     };
 
 })(typeof window !== 'undefined' ? window : this);

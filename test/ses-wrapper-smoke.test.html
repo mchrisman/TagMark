@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test: SES wrapper smoke</title>
+  <script src="../lib/deep_proxy.js"></script>
+  <script src="../lib/ActDown.js"></script>
+  <script src="../lib/ActDown-ext-forms.js"></script>
+  <script>
+    // Minimal SES shims for the smoke test
+    let lockdownCalls = 0;
+    window.lockdown = function () { lockdownCalls++; };
+    class FakeCompartment {
+      constructor(endowments) {
+        this.endowments = endowments;
+        this.evaluations = 0;
+      }
+      evaluate(source) {
+        this.evaluations++;
+        const wrapped = Function('endowments', `with (endowments) { return (${source}); }`);
+        return wrapped(this.endowments);
+      }
+    }
+    window.Compartment = FakeCompartment;
+  </script>
+  <script src="../src/tagmark.js"></script>
+  <script src="../demo/tagmark-ses-wrapper.js"></script>
+  <script src="./_harness.js"></script>
+</head>
+<body>
+
+<tag-mark id="root">
+  <div data-tm-text="{Math.sqrt(49) + safeValue}"></div>
+</tag-mark>
+
+<div id="test-results" data-status="pending"></div>
+
+<script>
+Test.run("ses-wrapper-smoke", async t => {
+  const strategy = TagMarkSES.install({ endowments: { Math, safeValue: 7 } });
+  await new Promise(r => setTimeout(r, 50));
+  const text = document.querySelector('#root div')?.textContent?.trim();
+
+  t.eq(lockdownCalls, 1, 'lockdown was invoked');
+  t.ok(strategy.makeFunction, 'strategy was created');
+  t.eq(text, '14', 'expressions run inside the compartment and can use endowments');
+  t.done();
+});
+</script>
+
+</body>
+</html>
